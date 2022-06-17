@@ -35,22 +35,10 @@ def get_rotation(azimuth, zenith):
 
     return azimuth_rotation @ zenith_rotation
 
-def get_scale(line, rot_line):
-    print('lines')
-    print(line)
-    print(rot_line)
-    u = (line[1] - line[0])
-    u = u / np.linalg.norm(u)
-    v = rot_line[1] - rot_line[0]
-    v = v / np.linalg.norm(v)
-    print('dirs')
-    print(u)
-    print(v)
-    print('dot = %f' % (u@v))
-    s = (u@v)**2
-    #s = np.exp( (u@v)**2 )
-    print(s, end='\n\n')
-    return np.diag(np.array([s,s,s]))
+def get_scale(u, v, kappa):
+    from scipy.special import hyp1f1 as M
+
+    return (1/M(1.0/2.0, 3.0/2.0, kappa)) * np.exp( kappa*(u@v)**2 )
 
 # Load the sampling scheme
 def load_scheme(scheme_filename, bval=None):
@@ -65,27 +53,41 @@ def load_scheme(scheme_filename, bval=None):
     return np.array( scheme )
 
 # Probe the signal at a given q-space coordinate for a given voxel configuration
-# ----------------------------------------------
-def E(q, b, voxel):
-    signal = 0
-
+# ------------------------------------------------------------------------------
+def E(g, b, voxel, dispersion=False, noise=False):
     ntensors = voxel['n']
-    lambdas  = voxel['eigenvalues']
-    R = voxel['rotations']
-    alphas = voxel['fractions']
+    pdds = voxel['pdds']
+    lambdas = voxel['eigenvals']
+    ndirs = voxel['ndirs']
 
+    signal = 0
     for i in range(ntensors):
-        D = R[i] @ np.diag(lambdas[i]) @ R[i].transpose()
-        signal = signal + alphas[i] * np.exp( -b*(q.transpose()@D@q) )
+        azimuth, zenith = pdds[2*i], pdds[2*i+1]
+        R = get_rotation(azimuth, zenith)
+
+        if dispersion:
+            dirs,weights = get_dispersion(azimuth)
+
+            aux = 0
+            for j in range(ndirs):
+                R = rotations[i,j]  #direction
+                w = weights[i,j]    #weight of the direction
+                D = R @ np.diag(lambdas[i]) @ R.transpose()
+                aux = aux + w*np.exp( -b*(g.transpose()@D@g) )
+            signal = signal + alphas[i] * aux
+        else:
+            R = rotations[i]
+            D = R @ np.diag(lambdas[i]) @ R.transpose()
+            signal = signal + alphas[i] * np.exp( -b*(g.transpose()@D@g) )
 
     return signal
 
-def get_acquisition(scheme, sigma, voxel):
-    ndirs = len(scheme)
-    signal = np.zeros(ndirs)
+def get_acquisition(voxel, scheme, sigma=0.0):
+    nsamples = len(scheme)
+    signal = np.zeros(nsamples)
 
-    for i in range(ndirs):
-        signal[i] = E(scheme[i][0:3], scheme[i][3], voxel)
+    for i in range(nsamples):
+        signal[i] = E(g=scheme[i][0:3], b=scheme[i][3], voxel=voxel)
         # todo: add noise to the signal
 
     return signal
@@ -93,12 +95,70 @@ def get_acquisition(scheme, sigma, voxel):
 def random_angles(a, b, size):
     return a + (b-a)*np.random.rand(size)
 
-def plot_angles(azimuth, zenith, nangles):
+def sph2cart(r, azimuth, zenith):
+    x = r * np.cos(zenith) * np.sin(azimuth)
+    y = r * np.sin(zenith) * np.sin(azimuth)
+    z = r * np.cos(azimuth)
+    return (x,y,z)
+
+# Return the directions and the weights of the dispersion
+# (azimuth, zenith): spherical coordinates of the PDD
+# ndirs: number of directions in the dispersion
+# kappa: concentration parameter
+# ------------------------------------------------------------------------------
+def get_dispersion(azimuth, zenith, ndirs, kappa):
+    (x,y,z) = sph2cart(1.0, azimuth, zenith)
+
+    eps_azimuth = random_angles(a=-np.pi/2, b=np.pi/2, size=ndirs)
+    eps_zenith  = random_angles(a=-np.pi/2, b=np.pi/2, size=ndirs)
+
+    points, dirs, weights = [],[],[]
+    for i in range(ndirs):
+        R = get_rotation(azimuth+eps_azimuth[i], zenith+eps_zenith[i])
+        a = R @ (x,y,z)
+        b = R @ (-x,-y,-z)
+
+        s = get_scale((x,y,z), a, kappa)
+        a = s * a
+        b = s * b
+
+        points.append( a )
+        points.append( b )
+        dirs.append( a )
+        weights.append( s )
+
+    return np.array(points), np.array(dirs), np.array(weights)
+
+def plot_dispersion(points):
     from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.pyplot as plt
 
-    fig = plt.figure(figsize=plt.figaspect(1))  # Square figure
+    fig = plt.figure(figsize=(20,10))
     ax = fig.add_subplot(111, projection='3d')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    X,Y,Z = points[:,0], points[:,1], points[:,2]
+    ax.scatter(X, Y, Z, color='blue')
+
+    # fake bounding box to fix axis size
+    max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max()
+    Xb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][0].flatten() + 0.5*(X.max()+X.min())
+    Yb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][1].flatten() + 0.5*(Y.max()+Y.min())
+    Zb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][2].flatten() + 0.5*(Z.max()+Z.min())
+    for xb, yb, zb in zip(Xb, Yb, Zb):
+        ax.plot([xb], [yb], [zb], 'w')
+
+    plt.show()
+
+def plot_angles(azimuth, zenith, nangles, kappa):
+    from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib.pyplot as plt
+
+    fig = plt.figure(figsize=(20,10))  # Square figure
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title(r'$\kappa = %d$' % kappa)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -119,7 +179,9 @@ def plot_angles(azimuth, zenith, nangles):
 
     line = line @ get_rotation(azimuth, zenith)
 
-    ax.plot(line[:,0], line[:,1], line[:,2], marker='o', color='red')
+    #ax.plot(line[:,0], line[:,1], line[:,2], marker='o', color='red')
+
+    points = []
 
     for i in range(nangles):
         R = get_rotation(azimuth+eps_azimuth[i], zenith+eps_zenith[i])
@@ -127,13 +189,29 @@ def plot_angles(azimuth, zenith, nangles):
         #R = get_rotation(azimuth, zenith+eps_zenith[i])
         #R = get_rotation(azimuth, zenith)
 
-        rot_line = line @ R
+        rot_line = line @ R #rotate endpoints
 
-        S = get_scale(line, rot_line)
+        S = get_scale(line, rot_line, kappa)
 
-        rot_line = rot_line @ S
+        rot_line = rot_line @ S #scale endpoints
 
-        ax.plot(rot_line[:,0], rot_line[:,1], rot_line[:,2], marker='o', color='blue')
+        points.append( rot_line[0] )
+        points.append( rot_line[1] )
+
+        #ax.scatter(rot_line[:,0], rot_line[:,1], rot_line[:,2], marker='o', color='blue')
+        #ax.plot(rot_line[:,0], rot_line[:,1], rot_line[:,2], marker='o', color='blue')
+
+    points = np.array( points )
+    X,Y,Z = points[:,0], points[:,1], points[:,2]
+    ax.scatter(X, Y, Z, color='blue')
+
+    max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max()
+    Xb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][0].flatten() + 0.5*(X.max()+X.min())
+    Yb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][1].flatten() + 0.5*(Y.max()+Y.min())
+    Zb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][2].flatten() + 0.5*(Z.max()+Z.min())
+    # Comment or uncomment following both lines to test the fake bounding box:
+    for xb, yb, zb in zip(Xb, Yb, Zb):
+        ax.plot([xb], [yb], [zb], 'w')
 
     plt.show()
 
@@ -158,7 +236,7 @@ def random_eigenvalues(n):
 
     return lambdas
 
-def random_rotations(n):
+def random_sphere_directions(n):
     angles = np.zeros(6)
     
     for i in range(n):
@@ -167,40 +245,38 @@ def random_rotations(n):
 
     return angles
 
-# dimensions of the phantom
-X,Y,Z = 16,16,5
-voxels = itertools.product( range(X), range(Y), range(Z) )
-numcomp = np.random.randint( low=1, high=4, size=(X,Y,Z) )
-fractions   = np.zeros( (X,Y,Z, 3) )
-eigenvalues = np.zeros( (X,Y,Z, 9) )
-rotations   = np.zeros( (X,Y,Z, 6) )
-
-for (x,y,z) in voxels:
-    n = numcomp[x,y,z]
-
-    fractions[x,y,z, :]   = random_fractions(n)
-    eigenvalues[x,y,z, :] = random_eigenvalues(n)
-    rotations[x,y,z, :]   = random_rotations(n)
-
-theta = np.pi/4
-voxel = {}
-voxel['n'] = 2
-voxel['eigenvalues'] = [
-    np.array([0.002, 0.0001, 0.0001]),
-    np.array([0.003, 0.0001, 0.0001])
-]
-voxel['fractions'] = [0.5, 0.5]
-voxel['rotations'] = np.array([
-    get_rotation(np.pi, 0),
-    get_rotation(np.pi, theta)
-])
-
-#print(lambdas2fa(voxel['eigenvalues'][0]))
-#print(lambdas2fa(voxel['eigenvalues'][1]))
 
 scheme = load_scheme('Penthera_3T.txt')
+X,Y,Z,N = 16,16,5,len(scheme) # dimensions of the phantom
+voxels = itertools.product( range(X), range(Y), range(Z) )
 
-#print( E(scheme[0][0:3], scheme[0][3], voxel) )
-#print( get_acquisition(scheme, 0.0, voxel) )
+numcomp = np.random.randint( low=1, high=4, size=(X,Y,Z) ) # number of fascicles per voxel
+fracs   = np.zeros( (X,Y,Z, 3) )                           # volume fractions per voxel
+eigens  = np.zeros( (X,Y,Z, 9) )                           # eigenvalues per voxel
+pdds    = np.zeros( (X,Y,Z, 6) )                           # principal diffusion directions per voxel
+dwi     = np.zeros( (X,Y,Z, N) )                           # volume
 
-plot_angles(0, 0, 50)
+"""for (x,y,z) in voxels:
+    n = numcomp[x,y,z]
+
+    fracs[x,y,z,  :] = random_fractions(n)
+    eigens[x,y,z, :] = random_eigenvalues(n)
+    pdds[x,y,z,   :] = random_sphere_directions(n)
+
+    voxel = {}
+    voxel['x'] = x
+    voxel['y'] = y
+    voxel['z'] = z
+    voxel['n'] = n
+    voxel['alphas'] = fracs[x,y,z, :]
+    voxel['eigenvals'] = eigens[x,y,z, :]
+    voxel['pdds'] = pdds[x,y,z, :]
+    voxel['dispersion'] = [dirs, weights, ]
+
+    dwi[x,y,z, :] = get_acquisition(voxel, scheme)#"""
+
+points, dirs, weights = get_dispersion(azimuth=0.0, zenith=np.pi/2, ndirs=6000, kappa=8)
+plot_dispersion(points)
+#kappa = 16
+#ndirs = 6000
+#plot_angles(0, 0, ndirs, kappa)
