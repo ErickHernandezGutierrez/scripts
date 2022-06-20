@@ -13,6 +13,17 @@ def lambdas2fa(lambdas):
 
     return a*b/c
 
+def random_angles(a, b, size):
+    return a + (b-a)*np.random.rand(size)
+
+# Convert from spherical ccordinates to cartesian coordinates
+def sph2cart(r, azimuth, zenith):
+    x = r * np.cos(azimuth) * np.sin(zenith)
+    y = r * np.sin(azimuth) * np.sin(zenith)
+    z = r * np.cos(zenith)
+
+    return np.array([x,y,z]) #"""
+
 # Compute a rotation matrix corresponding to the orientation (azimuth,zenith)
 #     azimuth (phi):	angle in the x-y plane
 #     zenith  (theta):	angle in the x-z plane
@@ -29,16 +40,26 @@ def get_rotation(azimuth, zenith):
 
     zenith_rotation = np.array([
         np.array([ np.cos(zenith), 0.0, np.sin(zenith)]),
-        np.array([ 0.0,            1.0, 0.0]),
+        np.array([ 0.0,            1.0,            0.0]),
         np.array([-np.sin(zenith), 0.0, np.cos(zenith)])
-    ])
+    ]) #"""
 
-    return azimuth_rotation @ zenith_rotation
+    """zenith_rotation = np.array([
+        np.array([ 1.0,            0.0,             0.0]),
+        np.array([ 0.0, np.cos(zenith), -np.sin(zenith)]),
+        np.array([ 0.0, np.sin(zenith),  np.cos(zenith)])
+    ]) #"""
+
+    #return np.matmul(azimuth_rotation, zenith_rotation) # primero aplica la azimuth
+    return np.matmul(zenith_rotation, azimuth_rotation) # primero aplica la zenith
+
+    #return azimuth_rotation @ zenith_rotation
+    #return zenith_rotation @ azimuth_rotation
 
 def get_scale(u, v, kappa):
     from scipy.special import hyp1f1 as M
 
-    return (1/M(1.0/2.0, 3.0/2.0, kappa)) * np.exp( kappa*(u@v)**2 )
+    return (1/M(1.0/2.0,3.0/2.0,kappa)) * np.exp( kappa*(u@v)**2 )
 
 # Load the sampling scheme
 def load_scheme(scheme_filename, bval=None):
@@ -92,15 +113,6 @@ def get_acquisition(voxel, scheme, sigma=0.0):
 
     return signal
 
-def random_angles(a, b, size):
-    return a + (b-a)*np.random.rand(size)
-
-def sph2cart(r, azimuth, zenith):
-    x = r * np.cos(zenith) * np.sin(azimuth)
-    y = r * np.sin(zenith) * np.sin(azimuth)
-    z = r * np.cos(azimuth)
-    return (x,y,z)
-
 # Return the directions and the weights of the dispersion
 # (azimuth, zenith): spherical coordinates of the PDD
 # ndirs: number of directions in the dispersion
@@ -112,24 +124,21 @@ def get_dispersion(azimuth, zenith, ndirs, kappa):
     eps_azimuth = random_angles(a=-np.pi/2, b=np.pi/2, size=ndirs)
     eps_zenith  = random_angles(a=-np.pi/2, b=np.pi/2, size=ndirs)
 
-    points, dirs, weights = [],[],[]
+    points,dirs, weights = [],[],[]
     for i in range(ndirs):
         R = get_rotation(azimuth+eps_azimuth[i], zenith+eps_zenith[i])
-        a = R @ (x,y,z)
-        b = R @ (-x,-y,-z)
+        dirs.append( R )
+        a,b = R@(x,y,z), R@(-x,-y,-z)
 
         s = get_scale((x,y,z), a, kappa)
-        a = s * a
-        b = s * b
-
-        points.append( a )
-        points.append( b )
-        dirs.append( a )
         weights.append( s )
+        a,b = s*a,s*b
+
+        points = points + [a,b]
 
     return np.array(points), np.array(dirs), np.array(weights)
 
-def plot_dispersion(points):
+def plot_dispersion_old(points):
     from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.pyplot as plt
 
@@ -141,6 +150,42 @@ def plot_dispersion(points):
 
     X,Y,Z = points[:,0], points[:,1], points[:,2]
     ax.scatter(X, Y, Z, color='blue')
+
+    # fake bounding box to fix axis size
+    max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max()
+    Xb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][0].flatten() + 0.5*(X.max()+X.min())
+    Yb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][1].flatten() + 0.5*(Y.max()+Y.min())
+    Zb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][2].flatten() + 0.5*(Z.max()+Z.min())
+    for xb, yb, zb in zip(Xb, Yb, Zb):
+        ax.plot([xb], [yb], [zb], 'w')
+
+    plt.show()
+
+def plot_dispersion(azimuth, zenith, dirs, weights):
+    from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib.pyplot as plt
+
+    fig = plt.figure(figsize=(5,5))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    (x,y,z) = sph2cart(1.0, azimuth, zenith)
+    points = []
+    for (R,s) in zip(dirs, weights):
+        a,b = R@(x,y,z), R@(-x,-y,-z)
+        a,b = s*a, s*b
+        points = points + [a,b]
+    points = np.array(points)
+
+    X,Y,Z = points[:,0], points[:,1], points[:,2]
+    ax.scatter(X, Y, Z, color='blue')
+
+    max_amp = 10
+    (x,y,z) = (max_amp*x, max_amp*y, max_amp*z)
+    ax.scatter(x, y, z, color='red')
+    ax.scatter(-x, -y, -z, color='red')
 
     # fake bounding box to fix axis size
     max_range = np.array([X.max()-X.min(), Y.max()-Y.min(), Z.max()-Z.min()]).max()
@@ -275,8 +320,11 @@ dwi     = np.zeros( (X,Y,Z, N) )                           # volume
 
     dwi[x,y,z, :] = get_acquisition(voxel, scheme)#"""
 
-points, dirs, weights = get_dispersion(azimuth=0.0, zenith=np.pi/2, ndirs=6000, kappa=8)
-plot_dispersion(points)
+azimuth=np.pi/2
+zenith=np.pi/4
+points, dirs, weights = get_dispersion(azimuth=azimuth, zenith=zenith, ndirs=6000, kappa=8)
+#plot_dispersion_old(points)
+plot_dispersion(azimuth=azimuth, zenith=zenith, dirs=dirs, weights=weights)
 #kappa = 16
 #ndirs = 6000
 #plot_angles(0, 0, ndirs, kappa)
