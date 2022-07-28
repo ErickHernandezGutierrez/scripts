@@ -91,7 +91,7 @@ def add_rician_noise(S, SNR=np.inf):
 numcomp_filename = 'field/gt-numcomp.nii'
 compsize_filename = 'field/gt-compsize.nii'
 mask_filename = 'left-mask.nii'
-pdd_filename = 'gt-pdds.nii'
+pdd_filename = 'field/gt-pdds.nii'
 
 numcomp = nib.load( numcomp_filename ).get_fdata().astype(np.uint8)
 compsize = nib.load( compsize_filename ).get_fdata()
