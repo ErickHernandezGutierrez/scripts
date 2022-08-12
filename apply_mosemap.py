@@ -14,7 +14,7 @@ eigenvalues = [nib.load( '%s/%s_MRDS_%s_V%d_EIGENVALUES.nii'    % (MRDS_RESULTS_
 numcomp     = [nib.load( '%s/%s_MRDS_%s_V%d_NUM_COMP.nii'       % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD,N) ).get_fdata() for N in range(1,MRDS_N+1)]
 pdds        = [nib.load( '%s/%s_MRDS_%s_V%d_PDDs_CARTESIAN.nii' % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD,N) ).get_fdata() for N in range(1,MRDS_N+1)]
 isotropic   = [nib.load( '%s/%s_MRDS_%s_V%d_ISOTROPIC.nii'      % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD,N) ).get_fdata() for N in range(1,MRDS_N+1)]
-mse         = [nib.load( '%s/%s_MRDS_%s_V%d_MSE.nii'            % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD,N) ).get_fdata() for N in range(1,MRDS_N+1)]
+#mse         = [nib.load( '%s/%s_MRDS_%s_V%d_MSE.nii'            % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD,N) ).get_fdata() for N in range(1,MRDS_N+1)]
 fa          = [nib.load( '%s/%s_MRDS_%s_V%d_FA.nii'             % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD,N) ).get_fdata() for N in range(1,MRDS_N+1)]
 md          = [nib.load( '%s/%s_MRDS_%s_V%d_MD.nii'             % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD,N) ).get_fdata() for N in range(1,MRDS_N+1)]
 
@@ -32,7 +32,7 @@ eigenvalues_output = np.zeros((X,Y,Z,9), dtype=np.float32)
 numcomp_output     = np.zeros((X,Y,Z),   dtype=np.float32)
 pdds_output        = np.zeros((X,Y,Z,9), dtype=np.float32)
 isotropic_output   = np.zeros((X,Y,Z,2), dtype=np.float32)
-mse_output         = np.zeros((X,Y,Z),   dtype=np.float32)
+#mse_output         = np.zeros((X,Y,Z),   dtype=np.float32)
 fa_output          = np.zeros((X,Y,Z,3), dtype=np.float32)
 md_output          = np.zeros((X,Y,Z,3), dtype=np.float32)
 
@@ -46,7 +46,7 @@ for (x,y,z) in voxels:
         numcomp_output[x,y,z]       = numcomp[N][x,y,z]
         pdds_output[x,y,z,:]        = pdds[N][x,y,z,:]
         isotropic_output[x,y,z,:]   = isotropic[N][x,y,z,:]
-        mse_output[x,y,z]           = mse[N][x,y,z]
+        #mse_output[x,y,z]           = mse[N][x,y,z]
         fa_output[x,y,z,:]          = fa[N][x,y,z,:]
         md_output[x,y,z,:]          = md[N][x,y,z,:]
 
@@ -56,7 +56,7 @@ nib.save( nib.Nifti1Image(eigenvalues_output, affine, header), '%s/%s_MRDS_%s_DI
 nib.save( nib.Nifti1Image(numcomp_output,     affine, header), '%s/%s_MRDS_%s_DIAMOND_NUM_COMP.nii'       % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD) )
 nib.save( nib.Nifti1Image(pdds_output,        affine, header), '%s/%s_MRDS_%s_DIAMOND_PDDs_CARTESIAN.nii' % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD) )
 nib.save( nib.Nifti1Image(isotropic_output,   affine, header), '%s/%s_MRDS_%s_DIAMOND_ISOTROPIC.nii'      % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD) )
-nib.save( nib.Nifti1Image(mse_output,         affine, header), '%s/%s_MRDS_%s_DIAMOND_MSE.nii'            % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD) )
+#nib.save( nib.Nifti1Image(mse_output,         affine, header), '%s/%s_MRDS_%s_DIAMOND_MSE.nii'            % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD) )
 nib.save( nib.Nifti1Image(fa_output,          affine, header), '%s/%s_MRDS_%s_DIAMOND_FA.nii'             % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD) )
 nib.save( nib.Nifti1Image(md_output,          affine, header), '%s/%s_MRDS_%s_DIAMOND_MD.nii'             % (MRDS_RESULTS_PATH,MRDS_PREFIX,MRDS_METHOD) )
 
