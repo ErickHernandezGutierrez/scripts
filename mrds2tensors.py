@@ -7,17 +7,21 @@ EIGENVALUES_FILENAME    = sys.argv[1]
 COMP_SIZE_FILENAME      = sys.argv[2]
 PDDS_CARTESIAN_FILENAME = sys.argv[3]
 OUTPUT_FILENAME         = sys.argv[4]
-if len(sys.argv) > 5:
-    MASK_FILENAME = sys.argv[5]
 
 eigenvalues_img = nib.load(EIGENVALUES_FILENAME)
 sizes_img       = nib.load(COMP_SIZE_FILENAME)
 pdds_img        = nib.load(PDDS_CARTESIAN_FILENAME)
-mask = nib.load(MASK_FILENAME).get_fdata().astype(np.uint8)
 
 eigenvalues = eigenvalues_img.get_fdata()
 sizes       = sizes_img.get_fdata()
 pdds        = pdds_img.get_fdata()
+
+if len(sys.argv) > 5:
+    MASK_FILENAME = sys.argv[5]
+    mask = nib.load(MASK_FILENAME).get_fdata().astype(np.uint8)
+else:
+    MASK_FILENAME = None
+    mask = np.ones( eigenvalues.shape[0:3] )
 
 X,Y,Z = eigenvalues.shape[0:3]
 voxels = itertools.product( range(X), range(Y), range(Z) )
