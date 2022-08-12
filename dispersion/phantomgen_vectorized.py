@@ -93,10 +93,10 @@ compsize_filename = 'field/gt-compsize.nii'
 mask_filename = 'left-mask.nii'
 pdd_filename = 'field/gt-pdds.nii'
 
-numcomp = nib.load( numcomp_filename ).get_fdata().astype(np.uint8)
+numcomp  = nib.load( numcomp_filename ).get_fdata().astype(np.uint8)
 compsize = nib.load( compsize_filename ).get_fdata()
-mask = nib.load( mask_filename ).get_fdata().astype(np.uint8)
-pdd = nib.load(pdd_filename).get_fdata()
+mask     = nib.load( mask_filename ).get_fdata().astype(np.uint8)
+pdd      = nib.load( pdd_filename ).get_fdata()
 
 scheme = load_scheme('Penthera_3T.txt')
 X,Y,Z = numcomp.shape # dimensions of the phantom
@@ -118,19 +118,21 @@ b = scheme[:,3]
 pdd = pdd.reshape(nvoxels, 9)
 
 dwi = np.zeros((nvoxels,nsamples))
-for i in range(3):
+for i in range(start=0, stop=1, step=1):
     lambda1 = np.identity( nvoxels ) * lambdas[i, 0]
     lambda2 = np.identity( nvoxels ) * lambdas[i, 1]
-    alpha = np.identity( nvoxels ) * compsize[:,:,:, i].flatten()
+    alpha   = np.identity( nvoxels ) * compsize[:,:,:, i].flatten()
     S = get_acquisition(pdd[:, 3*i:3*i+3], g, b, lambda1, lambda2)
     #S = get_acquisition_dispersion(pdd[:, 3*i:3*i+3], g, b, lambda1[0,0], lambda2[0,0], 1000, 16)
     S = alpha @ S
 
     dwi += S
 
-dwi = add_rician_noise(dwi, SNR=SNRs[2])
-dwi = dwi.reshape(X,Y,Z,nsamples)
+#dwi = add_rician_noise(dwi, SNR=SNRs[2])
+#mask = np.identity( nvoxels ) * mask[:,:,:].flatten()
+#S = mask @ S
 
+dwi = dwi.reshape(X,Y,Z,nsamples)
 nib.save( nib.Nifti1Image(dwi, affine), 'dwi.nii' )
 
 """
