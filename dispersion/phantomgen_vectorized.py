@@ -88,10 +88,12 @@ def add_rician_noise(S, SNR=np.inf):
 
     return np.sqrt( (S + z)**2 + w**2 )
 
-numcomp_filename = 'field/gt-numcomp.nii'
-compsize_filename = 'field/gt-compsize.nii'
-mask_filename = 'left-mask.nii'
-pdd_filename = 'field/gt-pdds.nii'
+output_filename = sys.argv[1]
+
+numcomp_filename  = 'data/gt-numcomp.nii'
+compsize_filename = 'data/gt-compsize.nii'
+mask_filename     = 'left-mask.nii'
+pdd_filename      = 'data/gt-pdds.nii'
 
 numcomp  = nib.load( numcomp_filename ).get_fdata().astype(np.uint8)
 compsize = nib.load( compsize_filename ).get_fdata()
@@ -133,7 +135,7 @@ for i in range(start=0, stop=1, step=1):
 #S = mask @ S
 
 dwi = dwi.reshape(X,Y,Z,nsamples)
-nib.save( nib.Nifti1Image(dwi, affine), 'dwi.nii' )
+nib.save( nib.Nifti1Image(dwi, affine), output_filename )
 
 """
 azimuth=np.pi/2
