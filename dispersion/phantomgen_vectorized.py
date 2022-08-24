@@ -89,18 +89,21 @@ def add_rician_noise(S, SNR=np.inf):
     return np.sqrt( (S + z)**2 + w**2 )
 
 output_filename = sys.argv[1]
+lambdas_filename = sys.argv[2]
 
 numcomp_filename  = 'data/gt-numcomp.nii'
 compsize_filename = 'data/gt-compsize.nii'
-mask_filename     = 'left-mask.nii'
+mask_filename     = 'data/mask.nii'
 pdd_filename      = 'data/gt-pdds.nii'
+#lambdas_filename  = 'data/gt-lambdas1.nii'
 
 numcomp  = nib.load( numcomp_filename ).get_fdata().astype(np.uint8)
 compsize = nib.load( compsize_filename ).get_fdata()
 mask     = nib.load( mask_filename ).get_fdata().astype(np.uint8)
-pdd      = nib.load( pdd_filename ).get_fdata()
+pdds     = nib.load( pdd_filename ).get_fdata()
+lambdas  = nib.load( lambdas_filename ).get_fdata()
 
-scheme = load_scheme('Penthera_3T.txt')
+scheme = load_scheme('data/Penthera_3T.txt')
 X,Y,Z = numcomp.shape # dimensions of the phantom
 nsamples = len(scheme)
 nvoxels = X*Y*Z
@@ -109,22 +112,28 @@ voxels = itertools.product( range(X), range(Y), range(Z) )
 SNRs = [30, 12, np.inf]
 affine = np.identity(4)
 
-lambdas = np.array([
+"""lambdas = np.array([
     np.array([0.001, 0.0003, 0.0003]), # bundle \
     np.array([0.001, 0.0003, 0.0003]), # bundle /
     np.array([0.001, 0.0003, 0.0003])  # bundle O
-])
+])#"""
 
 g = scheme[:,0:3]
 b = scheme[:,3]
-pdd = pdd.reshape(nvoxels, 9)
+pdds = pdds.reshape(nvoxels, 9)
+lambdas = lambdas.reshape(nvoxels, 6)
 
 dwi = np.zeros((nvoxels,nsamples))
-for i in range(start=0, stop=1, step=1):
-    lambda1 = np.identity( nvoxels ) * lambdas[i, 0]
-    lambda2 = np.identity( nvoxels ) * lambdas[i, 1]
-    alpha   = np.identity( nvoxels ) * compsize[:,:,:, i].flatten()
-    S = get_acquisition(pdd[:, 3*i:3*i+3], g, b, lambda1, lambda2)
+for i in range(0, 3):
+    #lambda1  = np.identity( nvoxels ) * lambdas[0,0]
+    #lambda23 = np.identity( nvoxels ) * lambdas[0,1]
+
+    lambda1  = np.identity( nvoxels ) * lambdas[:, 2*i]
+    lambda23 = np.identity( nvoxels ) * lambdas[:, 2*i+1]
+    
+    alpha    = np.identity( nvoxels ) * compsize[:,:,:, i].flatten()
+    #alpha   = np.identity( nvoxels ) * mask[:,:,:].flatten()
+    S = get_acquisition(pdds[:, 3*i:3*i+3], g, b, lambda1, lambda23)
     #S = get_acquisition_dispersion(pdd[:, 3*i:3*i+3], g, b, lambda1[0,0], lambda2[0,0], 1000, 16)
     S = alpha @ S
 
