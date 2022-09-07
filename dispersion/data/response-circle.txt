@@ -1,0 +1,3 @@
+# Shells: 2000
+# command_history: /opt/mrtrix3/bin/amp2response dwi.mif iter3_SF.mif iter3_first_dir.mif iter3_RF.txt  (version=3.0.2-6-g4ab54489)
+1.31981919178117 -0.469269683801488 0.0797449312273032 -0.00915806595382044 0.000778173973721407 -9.47813726987402e-05

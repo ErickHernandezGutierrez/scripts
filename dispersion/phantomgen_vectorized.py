@@ -41,6 +41,28 @@ def get_dispersion_vec(pdd, ndirs, kappa):
 
     return dirs, weights
 
+# Reconstruct Diffusion Tensor From PDDs and lambdas
+# pdds:    (nvoxels, 9) matrix
+# lambdas: (nvoxels, 6) matrix
+# tensors: [(nvoxels, 6), (nvoxels, 6), (nvoxels, 6)] list of matrices
+def get_tensors(pdds, lambdas):
+    nvoxels = pdds.shape[0]
+    tensors = 3*[np.zeros((nvoxels, 6))]
+
+    for i in range(3):
+        for voxel in range(nvoxels):
+            R = get_rotation_from_dir( axis=(0,0,1), dir=pdds[voxel, 3*i:3*i+3] )
+            L = np.diag([ lambdas[voxel, 2*i], lambdas[voxel, 2*i+1], lambdas[voxel, 2*i+1] ])
+            D = R.transpose() @ L @ R
+            tensors[i][voxel, 0] = D[0,0]
+            tensors[i][voxel, 1] = D[1,1]
+            tensors[i][voxel, 2] = D[2,2]
+            tensors[i][voxel, 3] = D[0,1]
+            tensors[i][voxel, 4] = D[0,2]
+            tensors[i][voxel, 5] = D[1,2]
+
+    return tensors
+
 def get_acquisition(pdd, g, b, lambda1, lambda23):
     nvoxels  = pdd.shape[0]
     nsamples = g.shape[0]
@@ -95,7 +117,6 @@ numcomp_filename  = 'data/gt-numcomp.nii'
 compsize_filename = 'data/gt-compsize.nii'
 mask_filename     = 'data/mask.nii'
 pdd_filename      = 'data/gt-pdds.nii'
-#lambdas_filename  = 'data/gt-lambdas1.nii'
 
 numcomp  = nib.load( numcomp_filename ).get_fdata().astype(np.uint8)
 compsize = nib.load( compsize_filename ).get_fdata()
@@ -145,6 +166,12 @@ for i in range(0, 3):
 
 dwi = dwi.reshape(X,Y,Z,nsamples)
 nib.save( nib.Nifti1Image(dwi, affine), output_filename )
+
+# save GT tensors
+tensors = get_tensors(pdds, lambdas)
+for i in range(3):
+    tensors[i] = tensors[i].reshape(X,Y,Z,6)
+    nib.save( nib.Nifti1Image(tensors[i], affine), 'gt-tensor-%d.nii' % (i+1) )
 
 """
 azimuth=np.pi/2

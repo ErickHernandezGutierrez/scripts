@@ -38,6 +38,22 @@ def cart2sph(x, y, z):
     
     return azimuth, zenith, r
 
+# get Skew Symmetric Matrix From Vector
+def skew_symmetric_matrix(v):
+    return np.array([
+        [ 0,    -v[2],  v[1]],
+        [ v[2],  0,    -v[0]],
+        [-v[1],  v[0],  0]
+    ])
+
+def get_rotation_from_dir(axis, dir):
+    v = np.cross(axis, dir)
+    c = np.dot(axis, dir)
+
+    V = skew_symmetric_matrix(v)
+
+    return np.identity(3) + V + V@V * (1/(1+c))
+
 def random_angles(min_angle, max_angle, size):
     return min_angle + (max_angle-min_angle)*np.random.rand(size[0], size[1])
 
