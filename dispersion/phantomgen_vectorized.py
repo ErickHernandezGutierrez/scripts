@@ -110,21 +110,24 @@ def add_rician_noise(S, SNR=np.inf):
 
     return np.sqrt( (S + z)**2 + w**2 )
 
-output_filename = sys.argv[1]
-lambdas_filename = sys.argv[2]
+#output_filename = sys.argv[1]
+#lambdas_filename = sys.argv[2]
 
-numcomp_filename  = 'data/gt-numcomp.nii'
-compsize_filename = 'data/gt-compsize.nii'
-mask_filename     = 'data/mask.nii'
-pdd_filename      = 'data/gt-pdds.nii'
+subject_path = sys.argv[1]
 
-numcomp  = nib.load( numcomp_filename ).get_fdata().astype(np.uint8)
+compsize_filename = subject_path + '/gt/compsize.nii'
+lambdas_filename  = subject_path + '/gt/lambdas.nii'
+numcomp_filename  = subject_path + '/gt/numcomp.nii'
+pdd_filename      = subject_path + '/gt/pdds.nii'
+mask_filename     = subject_path + '/mask.nii'
+
 compsize = nib.load( compsize_filename ).get_fdata()
-mask     = nib.load( mask_filename ).get_fdata().astype(np.uint8)
-pdds     = nib.load( pdd_filename ).get_fdata()
 lambdas  = nib.load( lambdas_filename ).get_fdata()
+numcomp  = nib.load( numcomp_filename ).get_fdata().astype(np.uint8)
+pdds     = nib.load( pdd_filename ).get_fdata()
+mask     = nib.load( mask_filename ).get_fdata().astype(np.uint8)
 
-scheme = load_scheme('data/Penthera_3T.txt')
+scheme = load_scheme(subject_path + '/Penthera_3T.txt')
 X,Y,Z = numcomp.shape # dimensions of the phantom
 nsamples = len(scheme)
 nvoxels = X*Y*Z
@@ -142,15 +145,17 @@ affine = np.identity(4)
 g = scheme[:,0:3]
 b = scheme[:,3]
 pdds = pdds.reshape(nvoxels, 9)
-lambdas = lambdas.reshape(nvoxels, 6)
+lambdas = lambdas.reshape(nvoxels, 9)
+
+print('generating dwi for %s' % subject_path)
 
 dwi = np.zeros((nvoxels,nsamples))
 for i in range(0, 3):
     #lambda1  = np.identity( nvoxels ) * lambdas[0,0]
     #lambda23 = np.identity( nvoxels ) * lambdas[0,1]
 
-    lambda1  = np.identity( nvoxels ) * lambdas[:, 2*i]
-    lambda23 = np.identity( nvoxels ) * lambdas[:, 2*i+1]
+    lambda1  = np.identity( nvoxels ) * lambdas[:, 3*i]
+    lambda23 = np.identity( nvoxels ) * lambdas[:, 3*i+1]
     
     alpha    = np.identity( nvoxels ) * compsize[:,:,:, i].flatten()
     #alpha   = np.identity( nvoxels ) * mask[:,:,:].flatten()
@@ -160,18 +165,22 @@ for i in range(0, 3):
 
     dwi += S
 
-#dwi = add_rician_noise(dwi, SNR=SNRs[2])
+nib.save( nib.Nifti1Image(dwi.reshape(X,Y,Z,nsamples), affine), subject_path+'/gt/dwi.nii' )
+
+dwi = add_rician_noise(dwi, SNR=12)
 #mask = np.identity( nvoxels ) * mask[:,:,:].flatten()
 #S = mask @ S
 
 dwi = dwi.reshape(X,Y,Z,nsamples)
-nib.save( nib.Nifti1Image(dwi, affine), output_filename )
+nib.save( nib.Nifti1Image(dwi, affine), subject_path + '/dwi-SNR=12.nii' )
 
+"""
 # save GT tensors
 tensors = get_tensors(pdds, lambdas)
 for i in range(3):
     tensors[i] = tensors[i].reshape(X,Y,Z,6)
     nib.save( nib.Nifti1Image(tensors[i], affine), 'gt-tensor-%d.nii' % (i+1) )
+"""
 
 """
 azimuth=np.pi/2
