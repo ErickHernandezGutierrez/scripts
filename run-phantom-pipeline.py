@@ -48,6 +48,7 @@ for subject in subjects:
     lambda1, lambda23 = read_lambdas('%s/dti/results_DTInolin_ResponseAnisotropic.txt' % subject)
 
     # fit MRDS
+    os.system('mkdir %s/mrds' % subject)
     os.system('mdtmrds %s/dwi-corrected.nii %s/scheme.txt %s/mrds/results.nii -correction 0 -response %.9f,%.9f -mask %s/mask.nii -modsel bic -each -intermediate -fa -md -mse -method diff 1' % (subject,subject,subject,lambda1,lambda23,subject))
 
     
