@@ -4,17 +4,20 @@ import sys, itertools
 
 output_filename = sys.argv[1]
 
-"""
-l1 = 1.7 +- .4 mas parecido a humanos, pero peor para MRDS
-fa = 0.85 +- 0.1
-"""
-
 #phan-001
 lambdas = np.array([
     np.array([0.001, 0.0001]), # lambdas for bundle \ (FA=0.89)
     np.array([0.001, 0.0001]), # lambdas for bundle / (FA=0.89)
     np.array([0.001, 0.0001])  # lambdas for bundle O (FA=0.89)
 ])
+
+lambdas = np.array([
+    np.array([0.001, 0.0001]), # lambdas for bundle \ (FA=0.89)
+    np.array([0.001, 0.0001]), # lambdas for bundle / (FA=0.89)
+    np.array([0.001, 0.0001])  # lambdas for bundle O (FA=0.89)
+])
+
+# not used yet
 damaged_mask = np.zeros((16,16,5))
 damaged_lambdas = np.array([0.0, 0.0]) # (FA=0.0)
 #"""
