@@ -72,3 +72,63 @@ def getRotationFromDir(a, dir):
 
     return np.identity(3) + V + V@V * (1/(1+c))
 
+def tensor2matrix(tensor):
+    D = np.zeros( (3,3) )
+
+    D[0,0] = tensor[0]
+    D[1,1] = tensor[1]
+    D[2,2] = tensor[2]
+    D[0,1],D[1,0] = tensor[3], tensor[3]
+    D[0,2],D[2,0] = tensor[4], tensor[4]
+    D[1,2],D[2,1] = tensor[5], tensor[5]
+
+    return D
+
+def invariants(tensor):
+    D = tensor2matrix(tensor)
+
+    I1 = D[0][0] + D[1][1] + D[2][2]
+    I2 = D[0][0]*D[1][1] + D[1][1]*D[2][2] + D[2][2]*D[0][0] - (D[0][1]*D[0][1] + D[0][2]*D[0][2] + D[1][2]*D[1][2])
+    I3 = D[0][0]*D[1][1]*D[2][2] + 2*D[0][1]*D[0][2]*D[1][2] - (D[2][2]*D[0][1]*D[0][1] + D[1][1]*D[0][2]*D[0][2] + D[0][0]*D[1][2]*D[1][2])
+    I4 = D[0][0]*D[0][0] + D[1][1]*D[1][1] + D[2][2]*D[2][2] + 2*(D[0][1]*D[0][1] + D[0][2]*D[0][2] + D[1][2]*D[1][2])
+
+    return np.array([I1, I2, I3, I4])
+
+def eigenvalues(tensor):
+    I = invariants(tensor)
+
+    v = (I[0]/3.0)**2 - I[1]/3.0
+    s = (I[0])**3 - I[0]*I[1]/6.0 + I[2]/2.0
+    o = np.arccos( clamp(s/pow(v, 3.0/2.0), min_value=-1, max_value=1) ) / 3
+
+    lambda1 = I[0]/3 + 2*np.sqrt(v)*np.cos(o)
+    lambda2 = I[0]/3 - 2*np.sqrt(v)*np.cos(np.pi/3 + o)
+    lambda3 = I[0]/3 - 2*np.sqrt(v)*np.cos(np.pi/3 - o)
+
+    return np.array([lambda1, lambda2, lambda3])
+
+def eigenvectors(tensor):
+    D = tensor2matrix(tensor)
+
+    lambdas = eigenvalues(tensor)
+
+    A = np.full(3, D[0,0]) - lambdas
+    B = np.full(3, D[1,1]) - lambdas
+    C = np.full(3, D[2,2]) - lambdas
+
+    e = np.zeros((3,3))
+    for i in range(3):
+        e[i,:] = np.array([
+            (D[0,1]*D[1,2] - B[i]*D[0,2])*(D[0,2]*D[1,2] - C[i]*D[0,1]),
+            (D[0,2]*D[1,2] - C[i]*D[0,1])*(D[0,1]*D[0,2] - A[i]*D[1,2]),
+            (D[0,1]*D[0,2] - A[i]*D[1,2])*(D[0,1]*D[1,2] - B[i]*D[0,2])
+        ])
+
+        e[i,:] = e[i,:] / np.linalg.norm(e[i,:])
+
+    return e
+
+def tensor2fa(tensor):
+    I = invariants(tensor)
+
+    return np.sqrt(1 - I[1]/I[3])
