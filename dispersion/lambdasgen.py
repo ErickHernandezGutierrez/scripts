@@ -3,6 +3,13 @@ import nibabel as nib
 import sys, itertools
 import matplotlib.pyplot as plt
 
+def lambdas2fa(l1, l2, l3):
+    a = np.sqrt(0.5)
+    b = np.sqrt( (l1-l2)**2 + (l2-l3)**2 + (l3-l1)**2 )
+    c = np.sqrt( l1**2 + l2**2 + l3**2 )
+
+    return a*b/c
+
 def L1FA2L2MD(L1, FA):
     a = FA / np.sqrt(3.0 - 2.0*FA*FA)
 
@@ -11,16 +18,19 @@ def L1FA2L2MD(L1, FA):
 
     return L2
 
-#output_filename = sys.argv[1]
-
 """
 l1 = 1.7 +- .4 mas parecido a humanos, pero peor para MRDS
 fa = 0.85 +- 0.1
 """
 
-FA = np.random.normal(loc=0.85, scale=0.03, size=100000)
+"""FA = np.random.normal(loc=0.85, scale=0.03, size=100000)
 L1 = np.random.normal(loc=1.7, scale=0.1, size=100000)
-L2 = L1FA2L2MD(L1, FA)
+L2 = L1FA2L2MD(L1, FA)"""
+
+L1 = np.random.normal(loc=1.35e-3, scale=np.sqrt(2.92e-8), size=100000)
+L2 = np.random.normal(loc=2.46, scale=np.sqrt(2.36e-9), size=100000)
+FA = lambdas2fa(L1, L2, L2)
+
 fig, ax = plt.subplots(1,3)
 
 ax[0].hist(FA, bins=64, edgecolor='black')
@@ -29,52 +39,17 @@ ax[0].set_xlabel('FA')
 ax[0].set_xlim([0.7, 1])
 ax[0].grid(True)
 
-ax[1].hist(L1*1e-3, bins=64, edgecolor='black')
+ax[1].hist(L1, bins=64, edgecolor='black')
 ax[1].set_title(r'Distribution of $\lambda_{1}$ values')
 ax[1].set_xlabel(r'$\lambda_{1}$')
 ax[1].grid(True)
 
-ax[2].hist(L2*1e-3, bins=64, edgecolor='black')
+ax[2].hist(L2, bins=64, edgecolor='black')
 ax[2].set_title(r'Distribution of $\lambda_{2,3}$ values')
 ax[2].set_xlabel(r'$\lambda_{2,3}$')
 ax[2].grid(True)
 plt.show()
 
-#phan-001
-lambdas = np.array([
-    np.array([0.001, 0.0001]), # lambdas for bundle \ (FA=0.89)
-    np.array([0.001, 0.0001]), # lambdas for bundle / (FA=0.89)
-    np.array([0.001, 0.0001])  # lambdas for bundle O (FA=0.89)
-])
-damaged_mask = np.zeros((16,16,5))
-damaged_lambdas = np.array([0.0, 0.0]) # (FA=0.0)
-#"""
-
-"""#phan-002
-lambdas = np.array([
-    np.array([0.001, 0.0001]), # lambdas for bundle \ (FA=0.89)
-    np.array([0.001, 0.0001]), # lambdas for bundle / (FA=0.89)
-    np.array([0.001, 0.0001])  # lambdas for bundle O (FA=0.89)
-])
-#"""
-
-"""#phan-003
-lambdas = np.array([
-    np.array([0.001, 0.0001]), # lambdas for bundle \ (FA=0.89)
-    np.array([0.001, 0.0001]), # lambdas for bundle / (FA=0.89)
-    np.array([0.002, 0.0009])  # lambdas for bundle O (FA=0.46)
-])
-#"""
-
-"""#phan-004
-lambdas = np.array([
-    np.array([0.0030, 0.0001]), # lambdas for bundle \ (FA=0.96)
-    np.array([0.0015, 0.0002]), # lambdas for bundle / (FA=0.85)
-    np.array([0.0009, 0.0003])  # lambdas for bundle O (FA=0.60)
-])
-damaged_lambdas = np.array([0.0009, 0.0005]) # (FA=0.34)
-damaged_mask = nib.load( 'damage-mask-4.nii' ).get_fdata()
-#"""
 
 nsubjects = 26
 nbundles  = 3
@@ -123,45 +98,4 @@ for sub_id in range(nsubjects):
         lambdas[:,:,:, 3*bundle_id+1] *= mask[:,:,:, bundle_id]
         lambdas[:,:,:, 3*bundle_id+2] *= mask[:,:,:, bundle_id]
 
-    """# bundle \
-    lambdas[:,:,:, 0] = L1[:,:,:, 0, sub_id]
-    lambdas[:,:,:, 1] = L2[:,:,:, 0, sub_id]
-    lambdas[:,:,:, 0] *= mask[:,:,:, 0]
-    lambdas[:,:,:, 1] *= mask[:,:,:, 0]
-
-    # bundle /
-    lambdas[:,:,:, 2] = L1[:,:,:, 1, sub_id]
-    lambdas[:,:,:, 3] = L2[:,:,:, 1, sub_id]
-    lambdas[:,:,:, 2] *= mask[:,:,:, 1]
-    lambdas[:,:,:, 3] *= mask[:,:,:, 1]
-
-    # bundle O
-    lambdas[:,:,:, 4] = L1[:,:,:, 2, sub_id]
-    lambdas[:,:,:, 5] = L2[:,:,:, 2, sub_id]
-    lambdas[:,:,:, 4] *= mask[:,:,:, 2]
-    lambdas[:,:,:, 5] *= mask[:,:,:, 2]"""
-
     #nib.save( nib.Nifti1Image(lambdas, np.identity(4)), 'sub-%.3d_ses-1/gt/lambdas.nii'%(sub_id+1) ) 
-
-"""
-data = np.ones((16,16,5,6))
-
-for (x,y,z) in voxels:
-    # for bundle \
-    if damaged_mask[x,y,z] == 0:
-        data[x,y,z, 0] = lambdas[0, 0]
-        data[x,y,z, 1] = lambdas[0, 1]
-    else:
-        data[x,y,z, 0] = damaged_lambdas[0]
-        data[x,y,z, 1] = damaged_lambdas[1]
-
-    # for bundle /
-    data[x,y,z, 2] = lambdas[1, 0]
-    data[x,y,z, 3] = lambdas[1, 1]
-
-    # for bundle O
-    data[x,y,z, 4] = lambdas[2, 0]
-    data[x,y,z, 5] = lambdas[2, 1]
-
-nib.save( nib.Nifti1Image(data, np.identity(4)), output_filename )
-#"""
