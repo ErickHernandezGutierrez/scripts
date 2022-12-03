@@ -37,6 +37,15 @@ def load_scheme(scheme_filename, bval=None):
     else:
         return np.array(bvecs), np.array(bvals), idx
 
+def load_lambdas(lambdas_filename):
+    with open(lambdas_filename, 'rt') as lambdas_file:
+        line = lambdas_file.readlines()[0]
+        lambdas = line.split(' ') [0:3]
+        lambdas = [float(value) for value in lambdas]
+
+               #lambda1    #lambda2    #lambda3 
+        return lambdas[0], lambdas[1], lambdas[2]
+
 def save_scheme(bvecs, bvals, scheme_filename):
     with open(scheme_filename, 'wt') as scheme_file:
         for (bvec, bval) in zip(bvecs, bvals):

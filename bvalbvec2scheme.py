@@ -37,6 +37,9 @@ try:
     # create scheme file
     scheme_file = open(scheme_filename, 'wt')
 
+    if invert_x:
+        print('[WARNING] Inverting x-coord!')
+
     print('[INFO] Writing scheme file...')
     for i in range(len(bvals)):
         if invert_x:
