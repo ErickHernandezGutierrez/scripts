@@ -15,7 +15,7 @@ voxels = itertools.product( range(X), range(Y), range(Z) )
 mask = np.zeros( (X,Y,Z), dtype=np.uint8 )
 
 for (x,y,z) in voxels:
-    if fa[x,y,z, 0]>0.7 or fa[x,y,z, 1]>0.7 or fa[x,y,z, 2]>0.7:
+    if fa[x,y,z, 0]>0.3 or fa[x,y,z, 1]>0.3 or fa[x,y,z, 2]>0.3:
         mask[x,y,z] = 1
 
 nib.save( nib.Nifti1Image(mask, fa_file.affine, fa_file.header), output_filename )

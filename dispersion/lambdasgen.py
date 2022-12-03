@@ -3,6 +3,13 @@ import nibabel as nib
 import sys, itertools
 import matplotlib.pyplot as plt
 
+def lambdas2fa(l1, l2, l3):
+    a = np.sqrt(0.5)
+    b = np.sqrt( (l1-l2)**2 + (l2-l3)**2 + (l3-l1)**2 )
+    c = np.sqrt( l1**2 + l2**2 + l3**2 )
+
+    return a*b/c
+
 def L1FA2L2MD(L1, FA):
     a = FA / np.sqrt(3.0 - 2.0*FA*FA)
 
@@ -45,15 +52,6 @@ ax[2].set_xlabel(r'$\lambda_{2,3}$')
 ax[2].grid(True)
 plt.show()
 
-"""#phan-001
-lambdas = np.array([
-    np.array([0.001, 0.0001]), # lambdas for bundle \ (FA=0.89)
-    np.array([0.001, 0.0001]), # lambdas for bundle / (FA=0.89)
-    np.array([0.001, 0.0001])  # lambdas for bundle O (FA=0.89)
-])
-damaged_mask = np.zeros((16,16,5))
-damaged_lambdas = np.array([0.0, 0.0]) # (FA=0.0)
-#"""
 
 nsubjects = 26
 nbundles  = 3
