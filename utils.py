@@ -64,7 +64,7 @@ def lambdas2fa(lambdas):
 
     return a*b/c
 
-def getSkewSymmetricMatrixFromVector(v):
+def skew_symmetric_matrix(v):
     return np.array([
         [ 0,    -v[2],  v[1]],
         [ v[2],  0,    -v[0]],
@@ -72,12 +72,12 @@ def getSkewSymmetricMatrixFromVector(v):
     ])
 
 # a = axis reference
-def getRotationFromDir(a, dir):
+def get_rotation_from_dir(a, dir):
     #a = (0,1,0)
     v = np.cross(a, dir)
     c = np.dot(a, dir)
 
-    V = getSkewSymmetricMatrixFromVector(v)
+    V = skew_symmetric_matrix(v)
 
     return np.identity(3) + V + V@V * (1/(1+c))
 
